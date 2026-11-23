@@ -1,0 +1,27 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticket Confirmation</title>
+</head>
+<body>
+
+    <h1>Ticket Submitted Successfully!</h1>
+
+    <p>Your ticket ID is:</p>
+
+    <h2>{{ ticket_id }}</h2>
+
+    <p>
+        Save this ticket ID. You will need it
+        to check your ticket status later.
+    </p>
+
+    <a href="{{ url_for('submit_ticket') }}">
+        Submit Another Ticket
+    </a>
+
+</body>
+</html>
