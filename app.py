@@ -1,4 +1,3 @@
-
 import os
 import logging
 
@@ -7,7 +6,7 @@ from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_wtf.csrf import CSRFProtect
 
-from tickets import create_ticket
+from tickets import create_ticket, lookup_status
 
 
 load_dotenv()
@@ -83,6 +82,74 @@ def ticket_confirmation():
     return render_template(
         "ticket_confirmation.html",
         ticket_id=ticket_id
+    )
+
+
+@app.route("/lookup-status", methods=["GET", "POST"])
+def lookup_ticket_status():
+    form_data = {
+        "employee_email": "",
+        "ticket_id": ""
+    }
+
+    if request.method == "POST":
+        form_data = {
+            "employee_email": request.form.get("employee_email", "").strip(),
+            "ticket_id": request.form.get("ticket_id", "").strip()
+        }
+
+        try:
+            # Validate by running the lookup once, then store only the inputs
+            lookup_status(
+                employee_email=form_data["employee_email"],
+                ticket_id=form_data["ticket_id"]
+            )
+
+            session["lookup_email"] = form_data["employee_email"]
+            session["lookup_ticket_id"] = form_data["ticket_id"]
+
+            return redirect(url_for("status_result"))
+
+        except ValueError as error:
+            flash(str(error), "error")
+
+        except psycopg2.Error:
+            logger.exception("Ticket status lookup failed")
+            flash(
+                "Something went wrong. Please try again later.",
+                "error"
+            )
+
+    return render_template(
+        "lookup_status.html",
+        form_data=form_data
+    )
+
+
+@app.route("/status-result", methods=["GET"])
+def status_result():
+    employee_email = session.pop("lookup_email", None)
+    ticket_id = session.pop("lookup_ticket_id", None)
+
+    if not employee_email or not ticket_id:
+        return redirect(url_for("lookup_ticket_status"))
+
+    try:
+        result = lookup_status(employee_email, ticket_id)
+
+    except ValueError as error:
+        flash(str(error), "error")
+        return redirect(url_for("lookup_ticket_status"))
+
+    except psycopg2.Error:
+        logger.exception("Ticket status lookup failed")
+        flash("Something went wrong. Please try again later.", "error")
+        return redirect(url_for("lookup_ticket_status"))
+
+    return render_template(
+        "status_result.html",
+        ticket_id=result["ticket_id"],
+        status=result["status"]
     )
 
 

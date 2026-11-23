@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Check Ticket Status</title>
+</head>
+<body>
+
+    <h1>Check Ticket Status</h1>
+
+    <!-- Display validation and lookup error messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+            <p class="{{ category }}">{{ message }}</p>
+        {% endfor %}
+    {% endwith %}
+
+    <form method="post" action="{{ url_for('lookup_ticket_status') }}">
+
+        <!-- CSRF protection -->
+        <input type="hidden"
+               name="csrf_token"
+               value="{{ csrf_token() }}">
+
+        <label for="employee_email">Employee Email:</label>
+        <input
+            type="email"
+            id="employee_email"
+            name="employee_email"
+            value="{{ form_data.employee_email }}"
+            required
+        >
+
+        <br><br>
+
+        <label for="ticket_id">Ticket ID:</label>
+        <input
+            type="text"
+            id="ticket_id"
+            name="ticket_id"
+            value="{{ form_data.ticket_id }}"
+            required
+        >
+
+        <br><br>
+
+        <button type="submit">Check Status</button>
+
+    </form>
+
+    <p><a href="{{ url_for('submit_ticket') }}">Submit a new ticket</a></p>
+
+</body>
+</html>
