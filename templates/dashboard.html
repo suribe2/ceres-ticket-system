@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Technician Dashboard</title>
+</head>
+<body>
+
+    <h1>Technician Dashboard</h1>
+
+    <p>Logged in as: {{ technician_email }}</p>
+
+    <form method="post" action="{{ url_for('logout') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit">Log out</button>
+    </form>
+
+</body>
+</html>

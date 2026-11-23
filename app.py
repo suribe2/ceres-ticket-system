@@ -7,6 +7,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_wtf.csrf import CSRFProtect
 
 from tickets import create_ticket, lookup_status
+from auth import login_technician
 
 
 load_dotenv()
@@ -98,27 +99,10 @@ def lookup_ticket_status():
             "ticket_id": request.form.get("ticket_id", "").strip()
         }
 
-        try:
-            # Validate by running the lookup once, then store only the inputs
-            lookup_status(
-                employee_email=form_data["employee_email"],
-                ticket_id=form_data["ticket_id"]
-            )
+        session["lookup_email"] = form_data["employee_email"]
+        session["lookup_ticket_id"] = form_data["ticket_id"]
 
-            session["lookup_email"] = form_data["employee_email"]
-            session["lookup_ticket_id"] = form_data["ticket_id"]
-
-            return redirect(url_for("status_result"))
-
-        except ValueError as error:
-            flash(str(error), "error")
-
-        except psycopg2.Error:
-            logger.exception("Ticket status lookup failed")
-            flash(
-                "Something went wrong. Please try again later.",
-                "error"
-            )
+        return redirect(url_for("status_result"))
 
     return render_template(
         "lookup_status.html",
@@ -151,6 +135,66 @@ def status_result():
         ticket_id=result["ticket_id"],
         status=result["status"]
     )
+
+
+@app.route("/technician-login", methods=["GET", "POST"])
+def technician_login():
+    form_data = {"technician_email": ""}
+
+    if request.method == "POST":
+        form_data["technician_email"] = request.form.get(
+            "technician_email", ""
+        ).strip()
+
+        password = request.form.get("password", "")
+
+        try:
+            technician = login_technician(
+                technician_email=form_data["technician_email"],
+                password=password
+            )
+
+            session.clear()
+            session.permanent = True
+
+            session["technician_email"] = technician["technician_email"]
+
+            return redirect(url_for("dashboard"))
+
+        except ValueError:
+            flash("Invalid email or password.", "error")
+
+        except psycopg2.Error:
+            logger.exception("Technician login failed")
+            flash(
+                "Something went wrong. Please try again later.",
+                "error"
+            )
+
+    return render_template(
+        "technician_login.html",
+        form_data=form_data
+    )
+
+
+@app.route("/dashboard", methods=["GET"])
+def dashboard():
+    technician_email = session.get("technician_email")
+
+    if not technician_email:
+        return redirect(url_for("technician_login"))
+
+    return render_template(
+        "dashboard.html",
+        technician_email=technician_email
+    )
+
+
+@app.route("/logout", methods=["POST"])
+def logout():
+    session.clear()
+
+    return redirect(url_for("technician_login"))
 
 
 if __name__ == "__main__":
