@@ -6,7 +6,14 @@ from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_wtf.csrf import CSRFProtect
 
-from tickets import create_ticket, lookup_status
+from tickets import (
+    create_ticket,
+    lookup_status,
+    get_all_tickets,
+    get_ticket_by_id,
+    update_ticket,
+    get_hardware_report,
+)
 from auth import login_technician
 
 
@@ -14,6 +21,7 @@ load_dotenv()
 
 app = Flask(__name__)
 
+# Load secret key for session signing and CSRF protection
 secret_key = os.getenv("SECRET_KEY")
 
 if not secret_key:
@@ -22,12 +30,14 @@ if not secret_key:
 app.config["SECRET_KEY"] = secret_key
 app.config["PERMANENT_SESSION_LIFETIME"] = 1800
 
+# Enable global CSRF protection across all POST forms
 CSRFProtect(app)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+# Employee ticket submission route (FR-01, FR-02)
 @app.route("/submit-ticket", methods=["GET", "POST"])
 def submit_ticket():
     form_data = {
@@ -73,6 +83,7 @@ def submit_ticket():
     )
 
 
+# Ticket submission confirmation screen
 @app.route("/ticket-confirmation", methods=["GET"])
 def ticket_confirmation():
     ticket_id = session.pop("ticket_id", None)
@@ -86,6 +97,7 @@ def ticket_confirmation():
     )
 
 
+# Employee ticket status lookup form (FR-03)
 @app.route("/lookup-status", methods=["GET", "POST"])
 def lookup_ticket_status():
     form_data = {
@@ -110,6 +122,7 @@ def lookup_ticket_status():
     )
 
 
+# Employee ticket status lookup result screen
 @app.route("/status-result", methods=["GET"])
 def status_result():
     employee_email = session.pop("lookup_email", None)
@@ -137,6 +150,7 @@ def status_result():
     )
 
 
+# Technician authentication route (FR-04)
 @app.route("/technician-login", methods=["GET", "POST"])
 def technician_login():
     form_data = {"technician_email": ""}
@@ -154,6 +168,7 @@ def technician_login():
                 password=password
             )
 
+            # Reset session before storing authenticated technician email
             session.clear()
             session.permanent = True
 
@@ -177,19 +192,106 @@ def technician_login():
     )
 
 
+# Technician ticket queue dashboard with status and priority filtering (FR-05)
 @app.route("/dashboard", methods=["GET"])
 def dashboard():
     technician_email = session.get("technician_email")
 
+    # Require authenticated technician session
     if not technician_email:
         return redirect(url_for("technician_login"))
 
+    status_filter = request.args.get("status", "").strip()
+    priority_filter = request.args.get("priority", "").strip()
+
+    try:
+        tickets = get_all_tickets(
+            status_filter=status_filter,
+            priority_filter=priority_filter
+        )
+    except psycopg2.Error:
+        logger.exception("Failed to load dashboard tickets")
+        flash("Unable to load tickets right now.", "error")
+        tickets = []
+
     return render_template(
         "dashboard.html",
-        technician_email=technician_email
+        technician_email=technician_email,
+        tickets=tickets,
+        status_filter=status_filter,
+        priority_filter=priority_filter
     )
 
 
+# Individual ticket detail view and status/internal note update route (FR-06, FR-11)
+@app.route("/ticket/<ticket_id>", methods=["GET", "POST"])
+def ticket_detail(ticket_id):
+    technician_email = session.get("technician_email")
+
+    # Require authenticated technician session
+    if not technician_email:
+        return redirect(url_for("technician_login"))
+
+    # Handle technician status and internal note updates
+    if request.method == "POST":
+        new_status = request.form.get("status", "").strip()
+        internal_note = request.form.get("internal_note", "")
+
+        try:
+            update_ticket(ticket_id, new_status, internal_note)
+            flash("Ticket updated successfully.", "success")
+            return redirect(url_for("ticket_detail", ticket_id=ticket_id))
+
+        except ValueError as error:
+            flash(str(error), "error")
+
+        except psycopg2.Error:
+            logger.exception("Failed to update ticket")
+            flash("Something went wrong while updating the ticket.", "error")
+
+    # Fetch current ticket details for display
+    try:
+        ticket = get_ticket_by_id(ticket_id)
+    except psycopg2.Error:
+        logger.exception("Failed to load ticket details")
+        flash("Unable to load ticket details.", "error")
+        return redirect(url_for("dashboard"))
+
+    if not ticket:
+        flash("Ticket not found.", "error")
+        return redirect(url_for("dashboard"))
+
+    return render_template(
+        "ticket_detail.html",
+        technician_email=technician_email,
+        ticket=ticket
+    )
+
+
+# Hardware equipment summary report route (FR-07 to FR-09)
+@app.route("/hardware-report", methods=["GET"])
+def hardware_report():
+    technician_email = session.get("technician_email")
+
+    # Require authenticated technician session
+    if not technician_email:
+        return redirect(url_for("technician_login"))
+
+    try:
+        report_rows = get_hardware_report()
+    except psycopg2.Error:
+        logger.exception("Failed to generate hardware report")
+        flash("Unable to generate hardware report.", "error")
+        report_rows = []
+
+    return render_template(
+        "hardware_report.html",
+        technician_email=technician_email,
+        report_rows=report_rows
+    )
+
+
+# Technician logout route
 @app.route("/logout", methods=["POST"])
 def logout():
     session.clear()

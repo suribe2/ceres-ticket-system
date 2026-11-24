@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticket {{ ticket.ticket_id }}</title>
+</head>
+<body>
+
+    <h1>Ticket Details: {{ ticket.ticket_id }}</h1>
+
+    <p><a href="{{ url_for('dashboard') }}">&larr; Back to Dashboard</a></p>
+
+    <!-- Display validation, database, or success messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+            <p class="{{ category }}">{{ message }}</p>
+        {% endfor %}
+    {% endwith %}
+
+    <!-- Read-only ticket metadata -->
+    <table border="1" cellpadding="6" cellspacing="0">
+        <tr>
+            <th>Ticket ID</th>
+            <td>{{ ticket.ticket_id }}</td>
+        </tr>
+        <tr>
+            <th>Employee Email</th>
+            <td>{{ ticket.employee_email }}</td>
+        </tr>
+        <tr>
+            <th>Created At</th>
+            <td>{{ ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+        </tr>
+        <tr>
+            <th>Priority</th>
+            <td>{{ ticket.priority }}</td>
+        </tr>
+        <tr>
+            <th>Equipment</th>
+            <td>{{ ticket.equipment }}</td>
+        </tr>
+        <tr>
+            <th>Description</th>
+            <td>{{ ticket.description }}</td>
+        </tr>
+    </table>
+
+    <br>
+
+    <h2>Update Ticket</h2>
+
+    <!-- Technician form to update ticket status and internal notes -->
+    <form method="post" action="{{ url_for('ticket_detail', ticket_id=ticket.ticket_id) }}">
+        <!-- CSRF protection -->
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <!-- Ticket status selector -->
+        <label for="status">Status:</label>
+        <select id="status" name="status" required>
+            {% for s in ["Open", "Assigned", "Resolved"] %}
+                <option value="{{ s }}" {% if ticket.status == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+        </select>
+
+        <br><br>
+
+        <!-- Internal technician notes -->
+        <label for="internal_note">Internal Technician Note:</label><br>
+        <textarea id="internal_note" name="internal_note" rows="5" cols="50">{{ ticket.internal_note }}</textarea>
+
+        <br><br>
+
+        <button type="submit">Save Changes</button>
+    </form>
+
+</body>
+</html>
