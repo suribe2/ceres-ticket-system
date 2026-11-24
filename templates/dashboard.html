@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Technician Dashboard</title>
 </head>
 <body>
@@ -10,10 +11,86 @@
 
     <p>Logged in as: {{ technician_email }}</p>
 
+    <!-- Navigation link to aggregated hardware report -->
+    <p>
+        <a href="{{ url_for('hardware_report') }}">View Hardware Report</a>
+    </p>
+
+    <!-- Technician logout form -->
     <form method="post" action="{{ url_for('logout') }}">
+        <!-- CSRF protection -->
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit">Log out</button>
     </form>
+
+    <hr>
+
+    <!-- Display error or confirmation flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+            <p class="{{ category }}">{{ message }}</p>
+        {% endfor %}
+    {% endwith %}
+
+    <h2>Ticket Queue</h2>
+
+    <!-- Filter tickets by status and priority -->
+    <form method="get" action="{{ url_for('dashboard') }}">
+        <label for="status">Status:</label>
+        <select id="status" name="status">
+            <option value="">All Statuses</option>
+            {% for s in ["Open", "Assigned", "Resolved"] %}
+                <option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="priority">Priority:</label>
+        <select id="priority" name="priority">
+            <option value="">All Priorities</option>
+            {% for p in ["Low", "Medium", "High"] %}
+                <option value="{{ p }}" {% if priority_filter == p %}selected{% endif %}>{{ p }}</option>
+            {% endfor %}
+        </select>
+
+        <button type="submit">Filter</button>
+        <a href="{{ url_for('dashboard') }}">Reset</a>
+    </form>
+
+    <br>
+
+    <!-- Display matching tickets from DS-01 -->
+    {% if tickets %}
+        <table border="1" cellpadding="6" cellspacing="0">
+            <thead>
+                <tr>
+                    <th>Ticket ID</th>
+                    <th>Employee Email</th>
+                    <th>Equipment</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Created At</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ticket in tickets %}
+                    <tr>
+                        <td>{{ ticket.ticket_id }}</td>
+                        <td>{{ ticket.employee_email }}</td>
+                        <td>{{ ticket.equipment }}</td>
+                        <td>{{ ticket.priority }}</td>
+                        <td>{{ ticket.status }}</td>
+                        <td>{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>
+                            <a href="{{ url_for('ticket_detail', ticket_id=ticket.ticket_id) }}">View / Update</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No tickets found matching the selected filters.</p>
+    {% endif %}
 
 </body>
 </html>

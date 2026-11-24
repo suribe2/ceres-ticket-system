@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hardware Report</title>
+</head>
+<body>
+
+    <h1>Hardware Support Report</h1>
+
+    <p>Logged in as: {{ technician_email }}</p>
+    <p><a href="{{ url_for('dashboard') }}">&larr; Back to Dashboard</a></p>
+
+    <!-- Display error messages if report query fails -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+            <p class="{{ category }}">{{ message }}</p>
+        {% endfor %}
+    {% endwith %}
+
+    <!-- Aggregated equipment breakdown queried from DS-01 -->
+    {% if report_rows %}
+        <table border="1" cellpadding="6" cellspacing="0">
+            <thead>
+                <tr>
+                    <th>Equipment</th>
+                    <th>Total Tickets</th>
+                    <th>Open</th>
+                    <th>Assigned</th>
+                    <th>Resolved</th>
+                    <th>High Priority</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in report_rows %}
+                    <tr>
+                        <td>{{ row.equipment }}</td>
+                        <td>{{ row.total_tickets }}</td>
+                        <td>{{ row.open_count }}</td>
+                        <td>{{ row.assigned_count }}</td>
+                        <td>{{ row.resolved_count }}</td>
+                        <td>{{ row.high_priority_count }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No ticket data available for hardware reporting.</p>
+    {% endif %}
+
+</body>
+</html>
